@@ -1,0 +1,219 @@
+﻿@page "/"
+@page "/mantenimiento"
+@rendermode InteractiveServer
+@inject AppDbContext db
+
+<PageTitle>Registro de redadas</PageTitle>
+
+<div class="container mt-5">
+    <div class="card shadow-sm mb-5">
+        <div class="card-header bg-primary text-white">
+            <h2 class="mb-0">Mantenimiento de Detenciones</h2>
+        </div>
+
+        <div class="card-body">
+            @if (modo == Modo.Lista)
+            {
+                <h4 class="mb-4">Listado de Detenciones</h4>
+                <div class="text-end mb-4">
+                    <button class="btn btn-success" @onclick="()=>modo = Modo.Editar">
+                        <i class="bi bi-plus-circle"></i> Agregar
+                    </button>
+                </div>
+
+                <table class="table table-striped table-hover align-middle">
+                    <thead class="table-primary">
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Nombre Completo</th>
+                            <th>Coordenadas</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var detencion in detenciones)
+                        {
+                            <tr>
+                                <td>@detencion.FechaDetencion.ToString("dd/MM/yyyy")</td>
+                                <td>@detencion.Nombre @detencion.Apellido</td>
+                                <td>@detencion.Coordenadas()</td>
+                                <td class="text-center">
+                                    <button class="btn btn-warning btn-sm me-2" @onclick="()=>EditarDetencion(detencion)">
+                                        <i class="bi bi-pencil"></i> Editar
+                                    </button>
+                                    <button class="btn btn-danger btn-sm" @onclick="()=>MostrarConfirmacionEliminar(detencion)">
+                                        <i class="bi bi-trash"></i> Eliminar
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+            else if (modo == Modo.Editar)
+            {
+                <div class="card p-4 shadow-sm">
+                    <h4 class="text-primary">@((detencion.Id > 0) ? "Editar detención" : "Agregar una nueva detención")</h4>
+                    <EditForm Model="@detencion" OnInvalidSubmit="GuardarDetencion">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+
+                        <div class="form-group mb-3">
+                            <label for="FechaDetencion">Fecha de detención</label>
+                            <InputDate id="FechaDetencion" @bind-Value="@detencion.FechaDetencion" class="form-control" />
+                            <ValidationMessage For="@(() => detencion.FechaDetencion)" />
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="Nombre">Nombre</label>
+                            <InputText id="Nombre" @bind-Value="@detencion.Nombre" class="form-control" />
+                            <ValidationMessage For="@(() => detencion.Nombre)" />
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="Apellido">Apellido</label>
+                            <InputText id="Apellido" @bind-Value="@detencion.Apellido" class="form-control" />
+                            <ValidationMessage For="@(() => detencion.Apellido)" />
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="Pasaporte">Pasaporte</label>
+                            <InputText id="Pasaporte" @bind-Value="@detencion.Pasaporte" class="form-control" />
+                            <ValidationMessage For="@(() => detencion.Pasaporte)" />
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="FechaNacimiento">Fecha de Nacimiento</label>
+                            <InputDate id="FechaNacimiento" @bind-Value="@detencion.FechaNacimiento" class="form-control" />
+                            <ValidationMessage For="@(() => detencion.FechaNacimiento)" />
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="Latitud">Latitud</label>
+                            <InputNumber id="Latitud" @bind-Value="@detencion.Latitud" class="form-control" />
+                            <ValidationMessage For="@(() => detencion.Latitud)" />
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="Longitud">Longitud</label>
+                            <InputNumber id="Longitud" @bind-Value="@detencion.Longitud" class="form-control" />
+                            <ValidationMessage For="@(() => detencion.Longitud)" />
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <button type="submit" class="btn btn-primary" @onclick="GuardarDetencion">
+                                <i class="bi bi-save"></i> Guardar
+                            </button>
+                            <button type="button" class="btn btn-secondary" @onclick="CancelarEdicion">
+                                <i class="bi bi-x-circle"></i> Cancelar
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmación para eliminar -->
+@if (detencionAEliminar != null)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0, 0, 0, 0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirmación de Eliminación</h5>
+                    <button type="button" class="btn-close" @onclick="CancelarEliminacion"></button>
+                </div>
+                <div class="modal-body">
+                    <p>¿Estás seguro de que deseas eliminar esta detención?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmarEliminacion">
+                        Sí, eliminar
+                    </button>
+                    <button type="button" class="btn btn-secondary" @onclick="CancelarEliminacion">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    enum Modo
+    {
+        Lista,
+        Editar
+    }
+
+    Modo modo = Modo.Lista;
+    List<Detencion> detenciones = new List<Detencion>();
+    Detencion detencion = new Detencion();
+    Detencion? detencionAEliminar = null;
+
+    void GuardarDetencion()
+    {
+        if (detencion.Id > 0)
+        {
+            // Editar un registro existente
+            db.Detenciones.Update(detencion);
+            db.SaveChanges();
+
+            // Actualizar el elemento editado en la lista
+            var index = detenciones.FindIndex(d => d.Id == detencion.Id);
+            detenciones[index] = detencion;
+        }
+        else
+        {
+            // Crear un nuevo registro
+            db.Detenciones.Add(detencion);
+            db.SaveChanges();
+            detenciones.Add(detencion);
+        }
+
+        // Restablecer el formulario y cambiar a modo lista
+        detencion = new Detencion();
+        modo = Modo.Lista;
+        StateHasChanged(); // Forzar la actualización de la interfaz
+    }
+
+    void EditarDetencion(Detencion detencion)
+    {
+        this.detencion = detencion;
+        modo = Modo.Editar;
+    }
+
+    void CancelarEdicion()
+    {
+        // Restablecer el formulario y cambiar a modo lista
+        detencion = new Detencion();
+        modo = Modo.Lista;
+    }
+
+    void MostrarConfirmacionEliminar(Detencion detencion)
+    {
+        detencionAEliminar = detencion;
+    }
+
+    void ConfirmarEliminacion()
+    {
+        if (detencionAEliminar != null)
+        {
+            db.Detenciones.Remove(detencionAEliminar);
+            db.SaveChanges();
+            detenciones.Remove(detencionAEliminar);
+            detencionAEliminar = null;
+            StateHasChanged();
+        }
+    }
+
+    void CancelarEliminacion()
+    {
+        detencionAEliminar = null;
+    }
+
+    protected override void OnInitialized()
+    {
+        detenciones = db.Detenciones.ToList();
+    }
+}
